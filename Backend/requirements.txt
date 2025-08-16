@@ -1,0 +1,13 @@
+streamlit
+python-dotenv
+PyPDF2
+langchain
+langchain-community
+langchain-groq
+faiss-cpu
+sentence-transformers
+transformers
+fpdf
+fastapi
+uvicorn
+python-multipart
