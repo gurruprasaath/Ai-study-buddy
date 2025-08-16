@@ -44,6 +44,7 @@ const Chat = () => {
 
         if (data.file_id) {
           setFileId(data.file_id);
+          localStorage.setItem("pdf_file_id", data.file_id); // <-- persist file_id
           const uploadMessage: Message = {
             id: Date.now().toString(),
             content: `I've uploaded "${file.name}". Now I can answer questions about this document!`,

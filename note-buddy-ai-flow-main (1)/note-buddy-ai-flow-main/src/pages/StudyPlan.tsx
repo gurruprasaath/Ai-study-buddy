@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, CheckCircle, Plus, Target, TrendingUp, Book } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, Plus, Target, TrendingUp, Book, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface StudyTask {
   id: string;
@@ -23,51 +29,19 @@ interface StudyDay {
 }
 
 const StudyPlan = () => {
-  const [studyPlan, setStudyPlan] = useState<StudyDay[]>([
-    {
-      date: '2024-01-15',
-      totalDuration: 240,
-      completedDuration: 120,
-      tasks: [
-        {
-          id: '1',
-          title: 'Review Mathematics Chapter 5',
-          subject: 'Mathematics',
-          duration: 60,
-          completed: true,
-          priority: 'high',
-          dueDate: '2024-01-15'
-        },
-        {
-          id: '2',
-          title: 'Practice Chemistry Problems',
-          subject: 'Chemistry',
-          duration: 45,
-          completed: true,
-          priority: 'medium',
-          dueDate: '2024-01-15'
-        },
-        {
-          id: '3',
-          title: 'Read History Chapter 8',
-          subject: 'History',
-          duration: 90,
-          completed: false,
-          priority: 'high',
-          dueDate: '2024-01-15'
-        },
-        {
-          id: '4',
-          title: 'English Essay Draft',
-          subject: 'English',
-          duration: 45,
-          completed: false,
-          priority: 'medium',
-          dueDate: '2024-01-15'
-        }
-      ]
-    }
-  ]);
+  const { toast } = useToast();
+  const [studyPlan, setStudyPlan] = useState<StudyDay[]>([]);
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [newTask, setNewTask] = useState({
+    title: '',
+    subject: '',
+    duration: '',
+    priority: 'medium' as 'low' | 'medium' | 'high'
+  });
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiGeneratedPlan, setAiGeneratedPlan] = useState('');
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+  const fileId = localStorage.getItem("pdf_file_id");
 
   const toggleTaskCompletion = (dayIndex: number, taskId: string) => {
     setStudyPlan(prev => {
@@ -102,8 +76,102 @@ const StudyPlan = () => {
     return badges[priority as keyof typeof badges] || 'bg-gray-100 text-gray-800';
   };
 
-  const todaysPlan = studyPlan[0];
-  const completionPercentage = (todaysPlan.completedDuration / todaysPlan.totalDuration) * 100;
+  const addTask = () => {
+    if (!newTask.title || !newTask.subject || !newTask.duration) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const task: StudyTask = {
+      id: Date.now().toString(),
+      title: newTask.title,
+      subject: newTask.subject,
+      duration: parseInt(newTask.duration),
+      completed: false,
+      priority: newTask.priority,
+      dueDate: today
+    };
+
+    setStudyPlan(prev => {
+      const todayIndex = prev.findIndex(day => day.date === today);
+      if (todayIndex >= 0) {
+        const updated = [...prev];
+        updated[todayIndex].tasks.push(task);
+        updated[todayIndex].totalDuration += task.duration;
+        return updated;
+      } else {
+        return [...prev, {
+          date: today,
+          tasks: [task],
+          totalDuration: task.duration,
+          completedDuration: 0
+        }];
+      }
+    });
+
+    setNewTask({ title: '', subject: '', duration: '', priority: 'medium' });
+    setIsAddTaskOpen(false);
+    toast({
+      title: "Success",
+      description: "Task added successfully!",
+    });
+  };
+
+  const generateAIPlan = async () => {
+    if (!fileId) {
+      toast({
+        title: "Error",
+        description: "Please upload and process a file in Chat first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGeneratingPlan(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file_id", fileId);
+
+      const response = await fetch("http://localhost:8000/study-plan/", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to generate study plan");
+      }
+
+      const data = await response.json();
+      setAiGeneratedPlan(data.plan || "No study plan generated.");
+      toast({
+        title: "Success",
+        description: "AI study plan generated successfully!",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingPlan(false);
+    }
+  };
+
+  const todaysPlan = studyPlan.find(day => day.date === new Date().toISOString().split('T')[0]) || {
+    date: new Date().toISOString().split('T')[0],
+    tasks: [],
+    totalDuration: 0,
+    completedDuration: 0
+  };
+  const completionPercentage = todaysPlan.totalDuration > 0 ? (todaysPlan.completedDuration / todaysPlan.totalDuration) * 100 : 0;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -188,10 +256,65 @@ const StudyPlan = () => {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Study Task
-              </Button>
+              <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Study Task
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Study Task</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="title">Task Title *</Label>
+                      <Input
+                        id="title"
+                        value={newTask.title}
+                        onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder="e.g., Review Chapter 5"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="subject">Subject *</Label>
+                      <Input
+                        id="subject"
+                        value={newTask.subject}
+                        onChange={(e) => setNewTask(prev => ({ ...prev, subject: e.target.value }))}
+                        placeholder="e.g., Mathematics"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="duration">Duration (minutes) *</Label>
+                      <Input
+                        id="duration"
+                        type="number"
+                        value={newTask.duration}
+                        onChange={(e) => setNewTask(prev => ({ ...prev, duration: e.target.value }))}
+                        placeholder="e.g., 60"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="priority">Priority</Label>
+                      <Select value={newTask.priority} onValueChange={(value: 'low' | 'medium' | 'high') => setNewTask(prev => ({ ...prev, priority: value }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select priority" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button onClick={addTask} className="w-full">
+                      Add Task
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
               <Button variant="outline" className="w-full justify-start">
                 <Calendar className="h-4 w-4 mr-2" />
                 Schedule Study Time
@@ -297,6 +420,48 @@ const StudyPlan = () => {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* AI Generated Study Plan Section */}
+      <div className="mt-12">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Sparkles className="h-5 w-5 mr-2" />
+              AI-Generated Study Plan
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="ai-prompt">Describe your learning goals or subjects</Label>
+                <Textarea
+                  id="ai-prompt"
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="e.g., I want to prepare for my calculus exam in 6 weeks, focusing on derivatives and integrals..."
+                  className="min-h-[100px]"
+                />
+              </div>
+              <Button 
+                onClick={generateAIPlan} 
+                disabled={isGeneratingPlan}
+                className="w-full"
+              >
+                {isGeneratingPlan ? 'Generating...' : 'Generate AI Study Plan'}
+              </Button>
+              
+              {aiGeneratedPlan && (
+                <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+                  <h3 className="font-semibold text-blue-800 mb-3">Your Personalized Study Plan</h3>
+                  <div className="text-sm text-gray-700 whitespace-pre-line">
+                    {aiGeneratedPlan}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

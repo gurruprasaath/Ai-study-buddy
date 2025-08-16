@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, Sparkles, Copy, Download, Loader2, AlertCircle } from 'lucide-react';
 import { useFiles } from '@/contexts/FileProvider';
 import { Button } from '@/components/ui/button';
@@ -10,13 +10,21 @@ const Summarize = () => {
   const [summary, setSummary] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string>('');
+  const [fileId, setFileId] = useState<string | null>(null);
   const { toast } = useToast();
 
+  useEffect(() => {
+    const savedFileId = localStorage.getItem("pdf_file_id");
+    if (savedFileId) {
+      setFileId(savedFileId);
+    }
+  }, []);
+
   const generateSummary = async () => {
-    if (!selectedFile) {
+    if (!fileId) {
       toast({
         title: "File Required",
-        description: "Please select a file to summarize.",
+        description: "Please upload a file in Chat first.",
         variant: "destructive",
       });
       return;
@@ -25,10 +33,8 @@ const Summarize = () => {
     setIsGenerating(true);
 
     try {
-      const fileContent = getFileContent(selectedFile);
-
       const formData = new FormData();
-      formData.append("file_content", fileContent);
+      formData.append("file_id", fileId);
 
       const response = await fetch("http://127.0.0.1:8000/summarize/", {
         method: "POST",
@@ -41,7 +47,11 @@ const Summarize = () => {
       }
 
       const data = await response.json();
-      setSummary(data.summaries.full || Object.values(data.summaries).join("\n") || "No summary generated.");
+      const summaryText =
+        typeof data.summaries === "string"
+          ? data.summaries
+          : Object.values(data.summaries).join("\n");
+      setSummary(summaryText || "No summary generated.");
 
     } catch (error: any) {
       toast({

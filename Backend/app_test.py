@@ -12,6 +12,8 @@ from resourses import get_top_youtube_videos
 from youtubesearchpython import VideosSearch
 import uvicorn
 from services import chat,summarize
+from services import run_locally
+from services import generate_code
 
 load_dotenv()
 app = FastAPI()
@@ -26,7 +28,8 @@ app.add_middleware(
 
 app.include_router(chat.router)
 app.include_router(summarize.router)
-
+app.include_router(run_locally.router)
+app.include_router(generate_code.router)
 
 
 

@@ -3,7 +3,7 @@ import os
 from fastapi import APIRouter, Form, HTTPException
 from services.chat import VECTORSTORE_CACHE
 from unit import extract_units_from_notes
-from summarize_agent import get_summarization_agent
+from services.summarize_agent import get_summarization_agent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -20,8 +20,10 @@ async def summarize_notes(
 
     try:
         if file_content:
-            # Simple mode: summarize raw text
-            summary = f"Summary of the content: {file_content[:100]}..."
+            summarizer_agent = get_summarization_agent()
+            summary = summarizer_agent.run({
+                "chunk": file_content[:5000]  # or use full content if your agent supports it
+            })
             return {"summaries": {"full": summary}}
 
         elif file_id:
@@ -41,8 +43,7 @@ async def summarize_notes(
                 # Fallback: summarize first 5000 chars
                 safe_content = full_text[:5000]
                 summary = summarizer_agent.run({
-                    "unit_title": "",
-                    "content": safe_content
+                     "chunk": safe_content[:5000]
                 })
                 summaries["full"] = summary
             else:
@@ -51,9 +52,8 @@ async def summarize_notes(
                         continue
                     safe_content = content[:5000]
                     summary = summarizer_agent.run({
-                        "unit_title": unit_title,
-                        "content": safe_content
-                    })
+        "chunk": safe_content
+    })
                     summaries[unit_title] = summary
 
             return {"summaries": summaries}
