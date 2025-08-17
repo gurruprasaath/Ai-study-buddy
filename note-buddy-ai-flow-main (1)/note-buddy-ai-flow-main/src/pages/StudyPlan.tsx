@@ -138,7 +138,7 @@ const StudyPlan = () => {
       const formData = new FormData();
       formData.append("file_id", fileId);
 
-      const response = await fetch("http://localhost:8000/study-plan/", {
+  const response = await fetch(`http://localhost:8000/study-plan/?_=${Date.now()}`, {
         method: "POST",
         body: formData,
       });

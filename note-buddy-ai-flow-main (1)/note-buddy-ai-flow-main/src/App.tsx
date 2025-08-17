@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,6 +15,7 @@ import Resources from "./pages/Resources";
 import StudyPlan from "./pages/StudyPlan";
 import PomodoroTimer from "./pages/PomodoroTimer";
 import EduTube from "./pages/EduTube";
+import GlobalPomodoroTimer from "./components/GlobalPomodoroTimer";
 import CodingPractice from "./pages/CodingPractice";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
@@ -24,41 +24,48 @@ import Layout from "./components/Layout";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <ThemeProvider>
-    <FileProvider>
-      <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="*" element={
-              <Layout>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/chat" element={<Chat />} />
-                  <Route path="/roadmap" element={<Roadmap />} />
-                  <Route path="/summarize" element={<Summarize />} />
-                  <Route path="/test-generator" element={<TestGenerator />} />
-                  <Route path="/test-results" element={<TestResults />} />
-                  <Route path="/resources" element={<Resources />} />
-                  <Route path="/study-plan" element={<StudyPlan />} />
-                  <Route path="/pomodoro" element={<PomodoroTimer />} />
-                  <Route path="/edutube" element={<EduTube />} />
-                  <Route path="/coding-practice" element={<CodingPractice />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Layout>
-            } />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-    </FileProvider>
-  </ThemeProvider>
-);
+function App() {
+  return (
+    <ThemeProvider>
+      <FileProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route
+                  path="*"
+                  element={
+                    <Layout>
+                      <Routes>
+                        <Route path="/" element={<Index />} />
+                        <Route path="/chat" element={<Chat />} />
+                        <Route path="/roadmap" element={<Roadmap />} />
+                        <Route path="/summarize" element={<Summarize />} />
+                        <Route path="/test-generator" element={<TestGenerator />} />
+                        <Route path="/test-results" element={<TestResults />} />
+                        <Route path="/resources" element={<Resources />} />
+                        <Route path="/study-plan" element={<StudyPlan />} />
+                        <Route path="/pomodoro" element={<PomodoroTimer />} />
+                        <Route path="/edutube" element={<EduTube />} />
+                        <Route path="/coding-practice" element={<CodingPractice />} />
+                        <Route path="/profile" element={<Profile />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </Layout>
+                  }
+                />
+              </Routes>
+              {/* Global Pomodoro Timer always visible */}
+              <GlobalPomodoroTimer />
+            </BrowserRouter>
+          </TooltipProvider>
+        </QueryClientProvider>
+      </FileProvider>
+    </ThemeProvider>
+  );
+}
 
 export default App;

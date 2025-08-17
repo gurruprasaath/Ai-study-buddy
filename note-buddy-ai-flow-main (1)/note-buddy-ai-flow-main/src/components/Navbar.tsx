@@ -15,19 +15,18 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   const mainNavItems = [
-    { name: 'Home', path: '/' },
-    { name: 'Chat', path: '/chat' },
-    { name: 'Roadmap', path: '/roadmap' },
-    { name: 'Summarize', path: '/summarize' },
+  { name: 'Home', path: '/' },
+  { name: 'Chat', path: '/chat' },
+  { name: 'Coding Practice', path: '/coding-practice' },
+  { name: 'Summarize', path: '/summarize' },
   ];
 
   const toolsNavItems = [
-    { name: 'Test Generator', path: '/test-generator', icon: '🧪' },
-    { name: 'Test Results', path: '/test-results', icon: '📊' },
-    { name: 'Study Plan', path: '/study-plan', icon: '🗓️' },
-    { name: 'Pomodoro Timer', path: '/pomodoro', icon: '⏲️' },
-    { name: 'EduTube', path: '/edutube', icon: '🎥' },
-    { name: 'Coding Practice', path: '/coding-practice', icon: '💻' },
+  { name: 'Test Generator', path: '/test-generator', icon: '🧪' },
+  { name: 'Test Results', path: '/test-results', icon: '📊' },
+  { name: 'Study Plan', path: '/study-plan', icon: '🗓️' },
+  { name: 'Pomodoro Timer', path: '/pomodoro', icon: '⏲️' },
+  { name: 'EduTube', path: '/edutube', icon: '🎥' },
   ];
 
   const secondaryNavItems = [

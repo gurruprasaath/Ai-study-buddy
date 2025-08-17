@@ -37,13 +37,26 @@ Answer:
 """
 )
 
+import logging
+
 def get_pdf_text(pdf_file):
     text = ""
-    pdf_reader = PdfReader(pdf_file)
-    for page in pdf_reader.pages:
-        page_text = page.extract_text()
-        if page_text:
-            text += page_text + "\n"
+    try:
+        pdf_reader = PdfReader(pdf_file)
+        for page_num, page in enumerate(pdf_reader.pages):
+            try:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+                logging.info(f"Page {page_num+1} extracted length: {len(page_text) if page_text else 0}")
+            except Exception as e:
+                logging.error(f"Error extracting text from page {page_num+1}: {e}")
+                continue
+    except Exception as e:
+        logging.error(f"PDF extraction error: {e}")
+        return ""
+    logging.info(f"Total extracted text length: {len(text.strip())}")
+    logging.info(f"Sample extracted text: {text[:200]}")
     return text.strip()
 
 def get_text_chunks(raw_text):
@@ -93,10 +106,14 @@ async def upload_pdf(pdf: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Invalid file type. Please upload a PDF.")
 
     raw_text = get_pdf_text(pdf.file)
+    logging.info(f"Raw text length after extraction: {len(raw_text)}")
     if not raw_text:
         raise HTTPException(status_code=400, detail="No text found in PDF.")
 
     text_chunks = get_text_chunks(raw_text)
+    logging.info(f"Number of text chunks: {len(text_chunks)}")
+    if text_chunks:
+        logging.info(f"First chunk sample: {text_chunks[0][:200]}")
     vector_store = get_vectorstore(text_chunks)
 
     file_id = str(uuid.uuid4())
@@ -110,14 +127,14 @@ async def chat_with_book(user_question: str = Form(...), file_id: str = Form(...
         raise HTTPException(status_code=404, detail="Invalid file_id. Please upload the PDF again.")
 
     vector_store = VECTORSTORE_CACHE[file_id]
-    
+
     # Ensure we have a proper FAISS object
     if not isinstance(vector_store, FAISS):
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail=f"Vector store is corrupted. Expected FAISS object, got {type(vector_store)}. Please re-upload the PDF."
         )
-    
+
     try:
         conversation = get_conversation_chain(vector_store)
         response = conversation({'question': user_question})

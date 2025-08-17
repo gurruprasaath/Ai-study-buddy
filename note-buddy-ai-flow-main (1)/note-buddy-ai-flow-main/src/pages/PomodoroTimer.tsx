@@ -15,16 +15,71 @@ interface PomodoroSession {
 }
 
 const PomodoroTimer = () => {
-  const [mode, setMode] = useState<TimerMode>('work');
-  const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes in seconds
-  const [isRunning, setIsRunning] = useState(false);
-  const [completedPomodoros, setCompletedPomodoros] = useState(0);
-  const [currentTask, setCurrentTask] = useState('');
+  // Timer state (declare first)
+  const [mode, setMode] = useState<TimerMode>(() => sessionStorage.getItem('pomodoro_mode') as TimerMode || 'work');
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const saved = sessionStorage.getItem('pomodoro_timeLeft');
+    return saved ? Number(saved) : 25 * 60;
+  });
+  const [isRunning, setIsRunning] = useState(() => sessionStorage.getItem('pomodoro_isRunning') === 'true');
+  const [completedPomodoros, setCompletedPomodoros] = useState(() => {
+    const saved = sessionStorage.getItem('pomodoro_completedPomodoros');
+    return saved ? Number(saved) : 0;
+  });
+  const [currentTask, setCurrentTask] = useState(() => sessionStorage.getItem('pomodoro_currentTask') || '');
+
+  // Music player state (declare after timer state)
+  const [musicFile, setMusicFile] = useState<File | null>(null);
+  const [musicUrl, setMusicUrl] = useState<string>("");
+  const [isPlaying, setIsPlaying] = useState<boolean>(() => sessionStorage.getItem('pomodoro_isPlaying') === 'true');
+  const defaultMusic = "https://cdn.pixabay.com/audio/2022/10/16/audio_12b6b1b7c7.mp3"; // royalty-free relaxing music
+  const audioRef = React.useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    // Persist music file name and URL in sessionStorage
+    if (musicFile) {
+      const url = URL.createObjectURL(musicFile);
+      setMusicUrl(url);
+      sessionStorage.setItem('pomodoro_musicFileName', musicFile.name);
+      // File objects can't be stored directly, so only name is saved
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setMusicUrl(defaultMusic);
+      sessionStorage.removeItem('pomodoro_musicFileName');
+    }
+  }, [musicFile]);
+
+  // Block player when not in break mode or break ends
+  useEffect(() => {
+    if (mode === 'shortBreak' || mode === 'longBreak') {
+      if (isPlaying && audioRef.current) {
+        audioRef.current.play();
+      }
+    } else {
+      setIsPlaying(false);
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    }
+  // Persist isPlaying state
+  sessionStorage.setItem('pomodoro_isPlaying', isPlaying ? 'true' : 'false');
+  }, [mode, isPlaying]);
+  // ...existing code...
+  // Removed duplicate state declarations for timer and music player
 
   // Timer settings
-  const [workDuration, setWorkDuration] = useState(25);
-  const [shortBreakDuration, setShortBreakDuration] = useState(5);
-  const [longBreakDuration, setLongBreakDuration] = useState(15);
+  const [workDuration, setWorkDuration] = useState(() => {
+    const saved = sessionStorage.getItem('pomodoro_workDuration');
+    return saved ? Number(saved) : 25;
+  });
+  const [shortBreakDuration, setShortBreakDuration] = useState(() => {
+    const saved = sessionStorage.getItem('pomodoro_shortBreakDuration');
+    return saved ? Number(saved) : 5;
+  });
+  const [longBreakDuration, setLongBreakDuration] = useState(() => {
+    const saved = sessionStorage.getItem('pomodoro_longBreakDuration');
+    return saved ? Number(saved) : 15;
+  });
 
   const [todayStats] = useState<PomodoroSession>({
     id: '1',
@@ -35,17 +90,51 @@ const PomodoroTimer = () => {
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    
     if (isRunning && timeLeft > 0) {
       interval = setInterval(() => {
-        setTimeLeft(prev => prev - 1);
+        setTimeLeft(prev => {
+          const newTime = prev - 1;
+          sessionStorage.setItem('pomodoro_timeLeft', String(newTime));
+          return newTime;
+        });
       }, 1000);
     } else if (timeLeft === 0) {
       handleTimerComplete();
     }
-
     return () => clearInterval(interval);
   }, [isRunning, timeLeft]);
+
+  // Persist all state changes
+  useEffect(() => {
+    sessionStorage.setItem('pomodoro_mode', mode);
+    sessionStorage.setItem('pomodoro_timeLeft', String(timeLeft));
+    sessionStorage.setItem('pomodoro_isRunning', isRunning ? 'true' : 'false');
+    sessionStorage.setItem('pomodoro_completedPomodoros', String(completedPomodoros));
+    sessionStorage.setItem('pomodoro_currentTask', currentTask);
+    sessionStorage.setItem('pomodoro_workDuration', String(workDuration));
+    sessionStorage.setItem('pomodoro_shortBreakDuration', String(shortBreakDuration));
+    sessionStorage.setItem('pomodoro_longBreakDuration', String(longBreakDuration));
+  }, [mode, timeLeft, isRunning, completedPomodoros, currentTask, workDuration, shortBreakDuration, longBreakDuration]);
+
+  // Cross-tab sync: listen for sessionStorage changes
+  useEffect(() => {
+    const syncState = (e: StorageEvent) => {
+      if (e.key && e.key.startsWith('pomodoro_')) {
+        if (e.key === 'pomodoro_mode') setMode(e.newValue as TimerMode);
+        if (e.key === 'pomodoro_timeLeft') setTimeLeft(e.newValue ? Number(e.newValue) : 0);
+        if (e.key === 'pomodoro_isRunning') setIsRunning(e.newValue === 'true');
+        if (e.key === 'pomodoro_completedPomodoros') setCompletedPomodoros(e.newValue ? Number(e.newValue) : 0);
+        if (e.key === 'pomodoro_currentTask') setCurrentTask(e.newValue || '');
+        if (e.key === 'pomodoro_workDuration') setWorkDuration(e.newValue ? Number(e.newValue) : 25);
+        if (e.key === 'pomodoro_shortBreakDuration') setShortBreakDuration(e.newValue ? Number(e.newValue) : 5);
+        if (e.key === 'pomodoro_longBreakDuration') setLongBreakDuration(e.newValue ? Number(e.newValue) : 15);
+        if (e.key === 'pomodoro_isPlaying') setIsPlaying(e.newValue === 'true');
+        // Can't sync File object, but could sync file name if needed
+      }
+    };
+    window.addEventListener('storage', syncState);
+    return () => window.removeEventListener('storage', syncState);
+  }, []);
 
   const handleTimerComplete = () => {
     setIsRunning(false);
@@ -62,7 +151,7 @@ const PomodoroTimer = () => {
     }
   };
 
-  const startTimer = () => setIsRunning(true);
+  // Remove old startTimer
   const pauseTimer = () => setIsRunning(false);
   
   const resetTimer = () => {
@@ -72,12 +161,20 @@ const PomodoroTimer = () => {
     setTimeLeft(duration * 60);
   };
 
+
+  // When switching modes, pause and reset timer to correct duration
   const switchMode = (newMode: TimerMode) => {
     setMode(newMode);
     setIsRunning(false);
-    const duration = newMode === 'work' ? workDuration : 
-                    newMode === 'shortBreak' ? shortBreakDuration : longBreakDuration;
+    let duration = newMode === 'work' ? workDuration : newMode === 'shortBreak' ? shortBreakDuration : longBreakDuration;
     setTimeLeft(duration * 60);
+  };
+
+  // When user clicks Start, start timer for the current mode (do not reset timeLeft)
+  const startTimer = () => {
+    if (!isRunning) {
+      setIsRunning(true);
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -133,7 +230,6 @@ const PomodoroTimer = () => {
                    mode === 'longBreak' ? 'Long Break' : mode}
                 </h2>
               </div>
-              
               {/* Mode Selector */}
               <div className="flex justify-center space-x-2">
                 <Button
@@ -169,6 +265,8 @@ const PomodoroTimer = () => {
                   {formatTime(timeLeft)}
                 </div>
               </div>
+
+              {/* Music player removed from break tab. Now only in global timer. */}
 
               {/* Progress Bar */}
               <div className="space-y-2">

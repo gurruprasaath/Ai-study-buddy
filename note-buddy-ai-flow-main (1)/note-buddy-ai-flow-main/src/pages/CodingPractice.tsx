@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Code, Play, CheckCircle, Save, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,13 +9,22 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const CodingPractice = () => {
-  const [selectedLanguage, setSelectedLanguage] = useState('javascript');
-  const [code, setCode] = useState('// Write your solution here\nfunction solve() {\n    \n}');
-  const [question, setQuestion] = useState('');
-  const [stdin, setStdin] = useState('');
+  const [selectedLanguage, setSelectedLanguage] = useState(() => localStorage.getItem('cp_selectedLanguage') || 'javascript');
+  const [code, setCode] = useState(() => localStorage.getItem('cp_code') || '// Write your solution here\nfunction solve() {\n    \n}');
+  const [question, setQuestion] = useState(() => localStorage.getItem('cp_question') || '');
+  const [stdin, setStdin] = useState(() => localStorage.getItem('cp_stdin') || '');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [output, setOutput] = useState('');
-  const [showOutput, setShowOutput] = useState(false);
+  const [output, setOutput] = useState(() => localStorage.getItem('cp_output') || '');
+  const [showOutput, setShowOutput] = useState(() => localStorage.getItem('cp_showOutput') === 'true');
+  // Persist all relevant state
+  useEffect(() => {
+    localStorage.setItem('cp_selectedLanguage', selectedLanguage);
+    localStorage.setItem('cp_code', code);
+    localStorage.setItem('cp_question', question);
+    localStorage.setItem('cp_stdin', stdin);
+    localStorage.setItem('cp_output', output);
+    localStorage.setItem('cp_showOutput', showOutput ? 'true' : 'false');
+  }, [selectedLanguage, code, question, stdin, output, showOutput]);
   const { toast } = useToast();
 
   const languages = [
@@ -37,7 +46,7 @@ const CodingPractice = () => {
     formData.append("language", selectedLanguage);
     formData.append("stdin", stdin);
 
-    const res = await fetch("http://localhost:8000/run-code/", {
+  const res = await fetch(`http://localhost:8000/run-code/?_=${Date.now()}`, {
       method: "POST",
       body: formData,
     });
@@ -50,8 +59,10 @@ const CodingPractice = () => {
       data.compile_output ? `Compile Error:\n${data.compile_output}` : ""
     ].filter(Boolean).join("\n\n");
 
-    setOutput(result || "No output.");
-    setShowOutput(true);
+  setOutput(result || "No output.");
+  setShowOutput(true);
+  localStorage.setItem('cp_output', result || "No output.");
+  localStorage.setItem('cp_showOutput', 'true');
   };
 
   const saveCode = async () => {
@@ -59,7 +70,7 @@ const CodingPractice = () => {
     formData.append("code", code);
     formData.append("language", selectedLanguage);
 
-    fetch("http://localhost:8000/save-code/", {
+  fetch(`http://localhost:8000/save-code/?_=${Date.now()}`, {
       method: "POST",
       body: formData,
     })
@@ -98,13 +109,15 @@ const CodingPractice = () => {
       formData.append("problem", question);
       formData.append("language", selectedLanguage);
 
-      const res = await fetch("http://localhost:8000/generate-code/", {
+  const res = await fetch(`http://localhost:8000/generate-code/?_=${Date.now()}`, {
         method: "POST",
         body: formData,
       });
       const data = await res.json();
-      setCode(data.code || "// No code generated");
-      setQuestion('');
+  setCode(data.code || "// No code generated");
+  setQuestion('');
+  localStorage.setItem('cp_code', data.code || "// No code generated");
+  localStorage.setItem('cp_question', '');
       toast({
         title: "Answer Generated",
         description: "AI has generated a solution based on your question!",
@@ -126,6 +139,7 @@ const CodingPractice = () => {
     });
   };
 
+  // ...existing code...
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="text-center mb-8">

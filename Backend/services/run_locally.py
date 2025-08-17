@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Form
 from fastapi.responses import StreamingResponse
 import io
-from loacal_run import run_locally  # Local runner utility
+from services.loacal_run import run_locally  # Local runner utility
 import logging
 
 # Basic logger setup
